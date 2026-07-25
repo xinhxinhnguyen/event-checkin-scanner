@@ -1,1 +1,1172 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Check-in sự kiện</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f4f6f8;
+      font-family: Arial, sans-serif;
+      color: #222;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 10px 0 20px;
+      font-size: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    #reader {
+      width: 100%;
+      margin-bottom: 15px;
+    }
+
+    #reader video {
+      width: 100% !important;
+      border-radius: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:disabled {
+      background: #bbb !important;
+      cursor: not-allowed;
+    }
+
+    .btn-start {
+      background: #1976d2;
+      color: white;
+    }
+
+    .btn-checkin {
+      background: #16803c;
+      color: white;
+    }
+
+    .btn-reset {
+      background: #777;
+      color: white;
+    }
+
+    .message {
+      display: none;
+      padding: 12px;
+      margin-top: 15px;
+      border-radius: 8px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: #d9f5df;
+      color: #146c2e;
+    }
+
+    .error {
+      background: #ffe1e5;
+      color: #b42318;
+    }
+
+    .warning {
+      background: #fff1cc;
+      color: #8a5a00;
+    }
+
+    .customer-info {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #555;
+    }
+
+    .value {
+      text-align: right;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    .qty-box {
+      margin-top: 20px;
+    }
+
+    .qty-box label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .qty-box input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .already-checkin {
+      display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #fff1cc;
+      color: #8a5a00;
+      line-height: 1.6;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>CHECK-IN SỰ KIỆN</h1>
+
+  <div class="card">
+
+```
+<!-- CAMERA -->
+<div id="reader"></div>
+
+<button
+  id="startBtn"
+  class="btn-start"
+  onclick="startScanner()"
+>
+  BẮT ĐẦU QUÉT QR
+</button>
+
+
+<!-- LOADING -->
+<div
+  id="loading"
+  class="loading"
+>
+  Đang xử lý...
+</div>
+
+
+<!-- MESSAGE -->
+<div
+  id="message"
+  class="message"
+></div>
+
+
+<!-- THÔNG TIN KHÁCH -->
+<div
+  id="customerInfo"
+  class="customer-info"
+>
+
+  <div class="row">
+    <span class="label">
+      Tên khách hàng
+    </span>
+
+    <span
+      id="customerName"
+      class="value"
+    ></span>
+  </div>
+
+
+  <div class="row">
+    <span class="label">
+      Sales
+    </span>
+
+    <span
+      id="sales"
+      class="value"
+    ></span>
+  </div>
+
+
+  <div class="row">
+    <span class="label">
+      Team / Đại lý
+    </span>
+
+    <span
+      id="agency"
+      class="value"
+    ></span>
+  </div>
+
+
+  <div class="row">
+    <span class="label">
+      Số lượng đăng ký
+    </span>
+
+    <span
+      id="registerQty"
+      class="value"
+    ></span>
+  </div>
+
+
+  <!-- ĐÃ CHECK-IN -->
+  <div
+    id="alreadyCheckin"
+    class="already-checkin"
+  >
+
+    <strong>
+      ⚠️ KHÁCH HÀNG ĐÃ CHECK-IN
+    </strong>
+
+    <br>
+
+    Người check-in:
+    <strong id="checkinBy"></strong>
+
+    <br>
+
+    Thời gian:
+    <strong id="checkinTime"></strong>
+
+  </div>
+
+
+  <!-- SỐ LƯỢNG THỰC TẾ -->
+  <div
+    id="qtyBox"
+    class="qty-box"
+  >
+
+    <label>
+      Số lượng khách thực tế
+    </label>
+
+    <input
+      id="actualQty"
+      type="number"
+      min="0"
+      step="1"
+      value="1"
+    >
+
+  </div>
+
+
+  <!-- CHECK-IN -->
+  <button
+    id="checkinBtn"
+    class="btn-checkin"
+    onclick="confirmCheckin()"
+  >
+    XÁC NHẬN CHECK-IN
+  </button>
+
+
+  <!-- RESET -->
+  <button
+    id="resetBtn"
+    class="btn-reset"
+    onclick="resetScanner()"
+  >
+    QUÉT KHÁCH HÀNG KHÁC
+  </button>
+
+</div>
+```
+
+  </div>
+
+</div>
+
+<script>
+
+
+/* =====================================================
+   CẤU HÌNH
+===================================================== */
+
+const API_URL =
+  "https://script.google.com/a/macros/onemount.com/s/AKfycbzfwD-X_7FejJurxja-dpJR3l1WwQT7aGOAUEruBPeMshdE9s0dp8x9Te--NDh6sTD_xg/exec";
+
+
+/* =====================================================
+   BIẾN
+===================================================== */
+
+let html5QrCode = null;
+
+let currentEventId = "";
+
+let currentCustomerId = "";
+
+let isProcessing = false;
+
+
+/* =====================================================
+   MESSAGE
+===================================================== */
+
+function showMessage(text, type) {
+
+  const message =
+    document.getElementById("message");
+
+  message.textContent = text;
+
+  message.className =
+    "message " + type;
+
+  message.style.display = "block";
+}
+
+
+function hideMessage() {
+
+  const message =
+    document.getElementById("message");
+
+  message.style.display = "none";
+}
+
+
+/* =====================================================
+   LOADING
+===================================================== */
+
+function showLoading(show) {
+
+  document.getElementById("loading").style.display =
+    show ? "block" : "none";
+}
+
+
+/* =====================================================
+   BẮT ĐẦU CAMERA
+===================================================== */
+
+function startScanner() {
+
+  hideMessage();
+
+  if (html5QrCode) {
+    return;
+  }
+
+  html5QrCode =
+    new Html5Qrcode("reader");
+
+  const config = {
+    fps: 10,
+    qrbox: {
+      width: 250,
+      height: 250
+    }
+  };
+
+  html5QrCode
+    .start(
+      {
+        facingMode: "environment"
+      },
+      config,
+      onScanSuccess,
+      onScanFailure
+    )
+    .then(function() {
+
+      console.log(
+        "Camera đã mở thành công."
+      );
+
+      document
+        .getElementById("startBtn")
+        .disabled = true;
+
+    })
+    .catch(function(error) {
+
+      console.error(
+        "CAMERA ERROR:",
+        error
+      );
+
+      html5QrCode = null;
+
+      showMessage(
+        "Không thể mở camera. " +
+        "Hãy kiểm tra quyền Camera " +
+        "của trình duyệt.",
+        "error"
+      );
+
+    });
+
+}
+
+
+/* =====================================================
+   KHI QUÉT QR THÀNH CÔNG
+===================================================== */
+
+function onScanSuccess(decodedText) {
+
+  if (isProcessing) {
+    return;
+  }
+
+  isProcessing = true;
+
+  console.log(
+    "QR ĐÃ QUÉT:",
+    decodedText
+  );
+
+  stopScanner();
+
+  parseQRCode(decodedText);
+}
+
+
+function onScanFailure(error) {
+
+  // Không xử lý lỗi quét liên tục
+
+}
+
+
+/* =====================================================
+   DỪNG CAMERA
+===================================================== */
+
+function stopScanner() {
+
+  if (!html5QrCode) {
+    return Promise.resolve();
+  }
+
+  return html5QrCode
+    .stop()
+    .then(function() {
+
+      console.log(
+        "Camera đã dừng."
+      );
+
+      html5QrCode = null;
+
+    })
+    .catch(function(error) {
+
+      console.error(
+        "STOP CAMERA ERROR:",
+        error
+      );
+
+      html5QrCode = null;
+
+    });
+
+}
+
+
+/* =====================================================
+   ĐỌC QR
+=====================================================
+
+   QR:
+   EVT001|KH002
+
+===================================================== */
+
+function parseQRCode(qrText) {
+
+  console.log(
+    "QR RAW:",
+    qrText
+  );
+
+  const parts =
+    qrText
+      .trim()
+      .split("|");
+
+
+  if (parts.length < 2) {
+
+    isProcessing = false;
+
+    showMessage(
+      "QR Code không đúng định dạng. " +
+      "QR phải có dạng: EVT001|KH002",
+      "error"
+    );
+
+    return;
+  }
+
+
+  currentEventId =
+    parts[0].trim();
+
+  currentCustomerId =
+    parts[1].trim();
+
+
+  console.log(
+    "EVENT_ID:",
+    currentEventId
+  );
+
+  console.log(
+    "CUSTOMER_ID:",
+    currentCustomerId
+  );
+
+
+  if (
+    !currentEventId ||
+    !currentCustomerId
+  ) {
+
+    isProcessing = false;
+
+    showMessage(
+      "QR Code thiếu EVENT_ID hoặc CUSTOMER_ID.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  getCustomer();
+
+}
+
+
+/* =====================================================
+   LẤY THÔNG TIN KHÁCH
+===================================================== */
+
+function getCustomer() {
+
+  showLoading(true);
+
+  hideMessage();
+
+
+  const url =
+    API_URL +
+    "?action=getCustomer" +
+    "&eventId=" +
+    encodeURIComponent(currentEventId) +
+    "&customerId=" +
+    encodeURIComponent(currentCustomerId);
+
+
+  console.log(
+    "CALL GET CUSTOMER API:",
+    url
+  );
+
+
+  fetch(url, {
+    method: "GET",
+    redirect: "follow"
+  })
+
+  .then(function(response) {
+
+    console.log(
+      "HTTP STATUS:",
+      response.status
+    );
+
+    console.log(
+      "RESPONSE URL:",
+      response.url
+    );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "HTTP Error: " +
+        response.status
+      );
+
+    }
+
+
+    return response.text();
+
+  })
+
+  .then(function(text) {
+
+    console.log(
+      "RAW API RESPONSE:",
+      text
+    );
+
+
+    let data;
+
+
+    try {
+
+      data =
+        JSON.parse(text);
+
+    } catch (error) {
+
+      console.error(
+        "JSON PARSE ERROR:",
+        error
+      );
+
+      throw new Error(
+        "Web App không trả về dữ liệu JSON."
+      );
+
+    }
+
+
+    showLoading(false);
+
+
+    console.log(
+      "CUSTOMER DATA:",
+      data
+    );
+
+
+    if (!data.success) {
+
+      isProcessing = false;
+
+      showMessage(
+        data.message ||
+        "Không tìm thấy khách hàng.",
+        "error"
+      );
+
+      return;
+    }
+
+
+    displayCustomer(data);
+
+  })
+
+  .catch(function(error) {
+
+    showLoading(false);
+
+    isProcessing = false;
+
+    console.error(
+      "GET CUSTOMER ERROR:",
+      error
+    );
+
+
+    showMessage(
+      "Không thể kết nối Web App. " +
+      error.message,
+      "error"
+    );
+
+  });
+
+}
+
+
+/* =====================================================
+   HIỂN THỊ THÔNG TIN KHÁCH
+===================================================== */
+
+function displayCustomer(data) {
+
+  document
+    .getElementById("customerInfo")
+    .style.display = "block";
+
+
+  document
+    .getElementById("customerName")
+    .textContent =
+    data.customerName || "";
+
+
+  document
+    .getElementById("sales")
+    .textContent =
+    data.sales || "";
+
+
+  document
+    .getElementById("agency")
+    .textContent =
+    data.agency || "";
+
+
+  document
+    .getElementById("registerQty")
+    .textContent =
+    data.registerQty ?? 0;
+
+
+  const alreadyCheckin =
+    document.getElementById(
+      "alreadyCheckin"
+    );
+
+
+  const qtyBox =
+    document.getElementById(
+      "qtyBox"
+    );
+
+
+  const checkinBtn =
+    document.getElementById(
+      "checkinBtn"
+    );
+
+
+  if (
+    data.checkinStatus ===
+    "ĐÃ CHECK-IN"
+  ) {
+
+    alreadyCheckin.style.display =
+      "block";
+
+    qtyBox.style.display =
+      "none";
+
+    checkinBtn.style.display =
+      "none";
+
+
+    document
+      .getElementById("checkinBy")
+      .textContent =
+      data.checkinBy || "";
+
+
+    document
+      .getElementById("checkinTime")
+      .textContent =
+      formatDateTime(
+        data.checkinTime
+      );
+
+
+    showMessage(
+      "⚠️ Khách hàng đã check-in trước đó.",
+      "warning"
+    );
+
+  } else {
+
+    alreadyCheckin.style.display =
+      "none";
+
+    qtyBox.style.display =
+      "block";
+
+    checkinBtn.style.display =
+      "block";
+
+
+    document
+      .getElementById("actualQty")
+      .value =
+      data.registerQty ?? 1;
+
+
+    showMessage(
+      "✅ Đã tìm thấy khách hàng. " +
+      "Vui lòng nhập số lượng thực tế.",
+      "success"
+    );
+
+  }
+
+
+  isProcessing = false;
+
+}
+
+
+/* =====================================================
+   XÁC NHẬN CHECK-IN
+===================================================== */
+
+function confirmCheckin() {
+
+  const actualQty =
+    Number(
+      document
+        .getElementById("actualQty")
+        .value
+    );
+
+
+  if (
+    !Number.isInteger(actualQty) ||
+    actualQty < 0
+  ) {
+
+    showMessage(
+      "Vui lòng nhập số lượng hợp lệ.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (
+    !currentEventId ||
+    !currentCustomerId
+  ) {
+
+    showMessage(
+      "Chưa xác định được thông tin khách hàng.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  showLoading(true);
+
+
+  const url =
+    API_URL +
+    "?action=checkin" +
+    "&eventId=" +
+    encodeURIComponent(currentEventId) +
+    "&customerId=" +
+    encodeURIComponent(currentCustomerId) +
+    "&actualQty=" +
+    encodeURIComponent(actualQty);
+
+
+  console.log(
+    "CHECK-IN API:",
+    url
+  );
+
+
+  fetch(url, {
+    method: "GET",
+    redirect: "follow"
+  })
+
+  .then(function(response) {
+
+    console.log(
+      "CHECK-IN STATUS:",
+      response.status
+    );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "HTTP Error: " +
+        response.status
+      );
+
+    }
+
+
+    return response.text();
+
+  })
+
+  .then(function(text) {
+
+    console.log(
+      "CHECK-IN RAW RESPONSE:",
+      text
+    );
+
+
+    let data;
+
+
+    try {
+
+      data =
+        JSON.parse(text);
+
+    } catch (error) {
+
+      throw new Error(
+        "Web App không trả về JSON."
+      );
+
+    }
+
+
+    showLoading(false);
+
+
+    if (data.success) {
+
+      showMessage(
+        "✅ CHECK-IN THÀNH CÔNG",
+        "success"
+      );
+
+
+      document
+        .getElementById("qtyBox")
+        .style.display = "none";
+
+
+      document
+        .getElementById("checkinBtn")
+        .style.display = "none";
+
+
+      document
+        .getElementById("alreadyCheckin")
+        .style.display = "block";
+
+
+      document
+        .getElementById("checkinBy")
+        .textContent =
+        data.checkinBy || "";
+
+
+      document
+        .getElementById("checkinTime")
+        .textContent =
+        formatDateTime(
+          data.checkinTime
+        );
+
+
+      return;
+    }
+
+
+    if (data.alreadyCheckin) {
+
+      showMessage(
+        "⚠️ Khách hàng đã check-in.",
+        "warning"
+      );
+
+
+      document
+        .getElementById("alreadyCheckin")
+        .style.display = "block";
+
+
+      document
+        .getElementById("checkinBy")
+        .textContent =
+        data.checkinBy || "";
+
+
+      document
+        .getElementById("checkinTime")
+        .textContent =
+        formatDateTime(
+          data.checkinTime
+        );
+
+
+      return;
+    }
+
+
+    showMessage(
+      data.message ||
+      "Check-in thất bại.",
+      "error"
+    );
+
+  })
+
+  .catch(function(error) {
+
+    showLoading(false);
+
+
+    console.error(
+      "CHECK-IN ERROR:",
+      error
+    );
+
+
+    showMessage(
+      "Không thể kết nối Web App. " +
+      error.message,
+      "error"
+    );
+
+  });
+
+}
+
+
+/* =====================================================
+   QUÉT KHÁCH HÀNG KHÁC
+===================================================== */
+
+function resetScanner() {
+
+  currentEventId = "";
+
+  currentCustomerId = "";
+
+  isProcessing = false;
+
+
+  document
+    .getElementById("customerInfo")
+    .style.display = "none";
+
+
+  document
+    .getElementById("alreadyCheckin")
+    .style.display = "none";
+
+
+  document
+    .getElementById("qtyBox")
+    .style.display = "block";
+
+
+  document
+    .getElementById("checkinBtn")
+    .style.display = "block";
+
+
+  document
+    .getElementById("actualQty")
+    .value = "1";
+
+
+  document
+    .getElementById("startBtn")
+    .disabled = false;
+
+
+  hideMessage();
+
+
+  startScanner();
+
+}
+
+
+/* =====================================================
+   FORMAT NGÀY GIỜ
+===================================================== */
+
+function formatDateTime(value) {
+
+  if (!value) {
+    return "";
+  }
+
+
+  const date =
+    new Date(value);
+
+
+  if (
+    isNaN(
+      date.getTime()
+    )
+  ) {
+
+    return value;
+  }
+
+
+  return date.toLocaleString(
+    "vi-VN",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }
+  );
+
+}
+
+</script>
+
+</body>
+
+</html>
 
